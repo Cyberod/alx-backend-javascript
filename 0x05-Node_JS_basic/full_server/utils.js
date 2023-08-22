@@ -1,31 +1,21 @@
 const fs = require('fs');
 
-async function countStudents(path) {
-  let data;
-  try {
-    data = await fs.promises.readFile(path, 'utf8');
-  } catch (error) {
-    throw new Error('Cannot load the database');
-  }
-  const students = data.split('\r\n').slice(1)
-    .map((student) => student.split(','))
-    .map((student) => ({
-      firstName: student[0],
-      lastName: student[1],
-      age: student[2],
-      field: student[3],
-    }));
-    let fields = students.map(student => student.field);
-    let unique_fields = new Set(fields);
-    let students_by_field = {};
-    for (let field of unique_fields) {
-      students_by_field[field] = [];
-    }
-    for (let student of students) {
-        students_by_field[student.field].push(student.firstName);
-    }
-    console.log(students_by_field);
-    return students_by_field;
-}
+const aggregate = (data) => data.slice(1).reduce(
+    (a, b) => {
+        const [first, , , field] = b.split(',');
+        if (field === 'CS') {
+            a.cs.push(first);
+        } else if (field === 'SWE') a.swe.push(first);
+        return a;
+    },
+    { cs: [], swe: [] },
+);
 
-module.exports = countStudents;
+const readDatabase = (path) => new Promise((resolve, reject) => {
+    fs.readFile(path, 'utf-8', (err, res) => {
+        if (err) return reject(new Error('Cannot load the database'));
+        return resolve(aggregate(res.split('\n')));
+    });
+});
+
+module.exports = readDatabase;

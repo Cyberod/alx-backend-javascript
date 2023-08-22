@@ -1,34 +1,41 @@
 const readDatabase = require('../utils');
 
+const arrToStr = (arr) => arr.reduce((a, b, i) => a + b + (i === arr.length - 1 ? '' : ', '), '');
+
 class StudentsController {
-    static getAllStudents(request, response) {
-        response.statusCode = 200;
-        response.setHeader('Content-Type', 'text/plain');
-        response.write('This is the list of our students\n');
-        readDatabase('./database.csv').then((data) => {
-            response.write(`Number of students in CS: ${data['CS'].length}. List: ${data['CS'].join(', ')}\n`);
-            response.write(`Number of students in SWE: ${data['SWE'].length}. List: ${data['SWE'].join(', ')}\n`);
-            response.end();
-        }).catch((err) => res.write(err.message))
-        .finally(() => {
-          res.end();
-        });
-    }
-    static getAllStudentsByMajor(request, response) {
-        response.statusCode = 200;
-        response.setHeader('Content-Type', 'text/plain');
-        let { major } = request.params;
-        if (major !== 'CS' && major !== 'SWE') {
-            response.statusCode = 500;
-            response.write('Major parameter must be CS or SWE\n');
-            response.end();
-            return;
+    static async getAllStudents(request, response) {
+        try {
+            const { cs, swe } = await readDatabase(process.argv[2]);
+            let output = 'This is the list of our students\n';
+            output += `Number of students in CS: ${cs.length}. List: ${arrToStr(
+                cs,
+            )}\n`;
+            output += `Number of students in SWE: ${swe.length}. List: ${arrToStr(
+                swe,
+            )}\n`;
+            response.status(200).send(output);
+        } catch (err) {
+            console.log(err);
+            response.status(500).send('Cannot load the database');
         }
-        readDatabase('./database.csv').then((data) => {
-            response.write(`List: ${data[major].join(', ')}\n`);
-            response.end();
-        }).catch((err) => response.send(err.message));
+    }
+
+    static async getAllStudentsByMajor(request, response) {
+        const { major } = request.params;
+        if (major !== 'CS' && major !== 'SWE') {
+            response.status(500).send('Major parameter must be CS or SWE');
+        } else {
+            try {
+                const { cs, swe } = await readDatabase(process.argv[2]);
+                response
+                    .status(200)
+                    .send(`List: ${arrToStr(major === 'CS' ? cs : swe)}`);
+            } catch (err) {
+                console.log(err);
+                response.status(500).send('Cannot load the database');
+            }
+        }
     }
 }
 
-export default StudentsController;
+module.exports = StudentsController;
